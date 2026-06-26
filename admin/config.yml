@@ -21,8 +21,8 @@ collections:
               - {label: "Price (IQD)", name: "price", widget: "number", value_type: "float"}
               - {label: "Description", name: "description", widget: "text", required: false}
               - {label: "Image", name: "image", widget: "image", required: false}
-              - {label: "Video (MP4)", name: "video", widget: "file", required: false, hint: "Upload a short video of the product (optional)"}
+              - {label: "Video (MP4)", name: "video", widget: "file", required: false}
               - {label: "Badge", name: "badge", widget: "string", required: false}
               - {label: "Category", name: "category", widget: "select", options: ["Gym Gear", "Home Decor", "Tech Gadgets", "Custom Orders", "Engineering Parts", "Prototypes"]}
               - {label: "Material", name: "material", widget: "string", required: false, default: "PLA"}
-              - {label: "Colors", name: "colors", widget: "list", required: false, hint: "Enter color codes or names, one per line (e.g., #FF0000 or Red)"}
+              - {label: "Colors", name: "colors", widget: "list", required: false, hint: "Enter one color per line (e.g., Red or #FF0000)"}
