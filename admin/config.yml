@@ -25,4 +25,4 @@ collections:
               - {label: "Badge", name: "badge", widget: "string", required: false}
               - {label: "Category", name: "category", widget: "select", options: ["Gym Gear", "Home Decor", "Tech Gadgets", "Custom Orders", "Engineering Parts", "Prototypes"]}
               - {label: "Material", name: "material", widget: "string", required: false, default: "PLA"}
-              - {label: "Colors", name: "colors", widget: "list", required: false, hint: "Enter one color per line (e.g., Red or #FF0000)"}
+              - {label: "Colors", name: "colors", widget: "list", required: false}
