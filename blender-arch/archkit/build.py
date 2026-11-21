@@ -118,8 +118,7 @@ def build_wall(spec, lv, wall, colls, quality):
     verts = [(x, y, z0) for x, y in p] + [(x, y, z1) for x, y in p]
     rng = range(n) if wall["closed"] else range(n - 1)
     faces = [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in rng]
-    mat = (M.make(wall["material"], *M.LIBRARY[wall["material"]]) if wall.get("material") in M.LIBRARY
-           else M.for_role(spec, wall["role"]))
+    mat = M.by_name(wall["material"]) if wall.get("material") in M.LIBRARY else M.for_role(spec, wall["role"])
     ob = mesh_obj(f"{lv['name']}_{wall['id']}", verts, faces, colls["walls"], mat, wall["role"], lv["name"])
     sol = ob.modifiers.new("Thickness", "SOLIDIFY")
     sol.thickness = wall["thickness"]
@@ -153,10 +152,10 @@ def build_openings(spec, lv, walls_by_id, colls, quality):
         hide_cutter(cut)
         if o["kind"] == "opening":
             continue
-        _frame(spec, lv, o, name, center, d, left, rot, t, colls)
+        _frame(spec, lv, o, name, center, d, left, rot, t, colls, wall["closed"])
 
 
-def _frame(spec, lv, o, name, center, d, left, rot, t, colls):
+def _frame(spec, lv, o, name, center, d, left, rot, t, colls, exterior=False):
     w, h = o["width"], o["height"]
     fp = o.get("frame", 0.06)                 # frame profile width
     fd = min(o.get("frame_depth", 0.10), t * 0.8)
@@ -178,12 +177,14 @@ def _frame(spec, lv, o, name, center, d, left, rot, t, colls):
         for i in range(nm):
             x = -w / 2 + fp + (i + 1) * (w - 2 * fp) / (nm + 1)
             place(x, 0, (fp * 0.8, fd * 0.9, h - 2 * fp), fm, "frame", f"mull{i}")
-        place(0, 0, (w - 2 * fp, 0.012, h - 2 * fp), M.for_role(spec, "glass"), "glass", "glass")
+        g = place(0, 0, (w - 2 * fp, 0.012, h - 2 * fp), M.for_role(spec, "glass"), "glass", "glass")
+        g["exterior"] = exterior
     else:  # door
         leaf_h = h - fp
         g = o.get("glazed", False)
         mat = M.for_role(spec, "glass" if g else "door")
-        place(0, -fp / 2, (w - 2 * fp, 0.045, leaf_h), mat, "glass" if g else "door", "leaf")
+        leaf = place(0, -fp / 2, (w - 2 * fp, 0.045, leaf_h), mat, "glass" if g else "door", "leaf")
+        leaf["exterior"] = exterior and g
 
 
 # ---------------------------------------------------------------- slabs, rooms, stairs
@@ -215,12 +216,28 @@ def build_rooms(spec, lv, colls):
     for r in lv["rooms"]:
         role = "floor"
         mat = M.for_role(spec, r.get("material_role", "floor")) if not r.get("material") \
-            else M.make(r["material"], *M.LIBRARY.get(r["material"], M.LIBRARY["oak_floor"]))
+            else M.by_name(r["material"])
         z = lv["elevation"]
         fl = prism(f"{lv['name']}_floor_{r['name']}", r["polygon"], z, z + 0.015,
                    colls["slabs"], mat, role, lv["name"])
         if lv.get("_void_cut"):
             boolean_cut(fl, lv["_void_cut"], "Voids")
+        # plaster ceiling under the slab / flat roof above
+        i = spec["levels"].index(lv)
+        above = spec["levels"][i + 1] if i + 1 < len(spec["levels"]) else None
+        zc = above["elevation"] - above["slab"] if above else \
+            (lv["elevation"] + lv["height"] if spec["roof"].get("type", "flat") == "flat" else None)
+        if zc is not None and r.get("ceiling", True):
+            ce = prism(f"{lv['name']}_ceiling_{r['name']}", r["polygon"], zc - 0.012, zc - 0.001,
+                       colls["slabs"], M.for_role(spec, "ceiling"), "ceiling", lv["name"])
+            if above and above["slab_openings"]:      # keep the stair void open
+                c = bpy.data.collections.get(f"cut_{above['name']}_ceiling")
+                if c is None:
+                    c = coll(f"cut_{above['name']}_ceiling", colls["cutters"])
+                    for k, hole in enumerate(above["slab_openings"]):
+                        hide_cutter(prism(f"{above['name']}_cvoid{k}", hole, zc - 0.2, zc + 0.2, c,
+                                          role="cutter", level=above["name"]))
+                boolean_cut(ce, c, "Voids")
         xs = [p[0] for p in r["polygon"]]
         ys = [p[1] for p in r["polygon"]]
         a = S.area(r["polygon"])
@@ -247,11 +264,24 @@ def build_stairs(spec, lv, colls):
         left = Vector((-d.y, d.x, 0))
         start = Vector((*s["start"], 0))  # start = corner on the RIGHT edge of the first step
         mat = M.for_role(spec, "stair")
+        # one solid flight: stepped side profile (along, up) extruded across the width
+        prof = [(0.0, 0.0)]
         for i in range(n):
-            hgt = (i + 1) * r
-            c = start + d * ((i + 0.5) * t) + left * (wdt / 2)
-            box(f"{lv['name']}_stair{k}_{i:02d}", (t, wdt, hgt),
-                (c.x, c.y, lv["elevation"] + hgt / 2), ang, colls["stairs"], mat, "stair", lv["name"])
+            prof += [(i * t, (i + 1) * r), ((i + 1) * t, (i + 1) * r)]
+        prof.append((n * t, 0.0))
+        z0 = lv["elevation"]
+        P = lambda a, y, z: tuple(start + d * a + left * y)[:2] + (z0 + z,)
+        m = len(prof)
+        verts = [P(a, 0.0, z) for a, z in prof] + [P(a, wdt, z) for a, z in prof]
+        faces = [tuple(range(m)), tuple(range(2 * m - 1, m - 1, -1))]
+        faces += [(k, (k + 1) % m, m + (k + 1) % m, m + k) for k in range(m)]
+        ob = mesh_obj(f"{lv['name']}_stair{k}", verts, faces, colls["stairs"], mat, "stair", lv["name"])
+        import bmesh
+        bm = bmesh.new()
+        bm.from_mesh(ob.data)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        bm.to_mesh(ob.data)
+        bm.free()
 
 
 # ---------------------------------------------------------------- roof
@@ -362,8 +392,7 @@ def build_site(spec, colls):
 def build_elements(spec, colls):
     for i, e in enumerate(spec["elements"]):
         role = e.get("role", "element")
-        mat = (M.make(e["material"], *M.LIBRARY[e["material"]]) if e.get("material") in M.LIBRARY
-               else M.for_role(spec, role))
+        mat = M.by_name(e["material"]) if e.get("material") in M.LIBRARY else M.for_role(spec, role)
         name = e.get("name", f"element{i}")
         lvl = e.get("level", "SITE")
         if e["type"] == "box":
@@ -373,8 +402,80 @@ def build_elements(spec, colls):
             prism(name, e["polygon"], e["z"][0], e["z"][1], colls["elements"], mat, role, lvl)
 
 
+# ---------------------------------------------------------------- context (trees)
+def _tree(name, x, y, z, height, rng, colls, crown=None):
+    """Simple procedural tree: tapered trunk + a crown of displaced leaf clusters."""
+    import bmesh
+    crown = crown or height * 0.36
+    bark, leaf = M.by_name("bark"), M.by_name("foliage")
+    trunk_h = height * 0.55
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=height * 0.022, radius2=height * 0.012,
+                          depth=trunk_h)
+    bmesh.ops.translate(bm, verts=bm.verts, vec=(0, 0, trunk_h / 2))
+    me = bpy.data.meshes.new(name + "_trunk")
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(bark)
+    ob = bpy.data.objects.new(name + "_trunk", me)
+    ob.location = (x, y, z)
+    colls["context"].objects.link(ob)
+    _tag(ob, "tree", "SITE")
+    bm = bmesh.new()
+    cz = height - crown * 0.95
+    n = 9
+    for i in range(n):
+        a = rng.uniform(0, 6.283)
+        rr = rng.uniform(0.0, crown * 0.55)
+        r = crown * rng.uniform(0.42, 0.62)
+        c = (rr * math.cos(a), rr * math.sin(a), cz + rng.uniform(-0.35, 0.45) * crown)
+        res = bmesh.ops.create_icosphere(bm, subdivisions=3, radius=r)
+        bmesh.ops.translate(bm, verts=res["verts"], vec=c)
+    me = bpy.data.meshes.new(name + "_crown")
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    me.materials.append(leaf)
+    ob = bpy.data.objects.new(name + "_crown", me)
+    ob.location = (x, y, z)
+    colls["context"].objects.link(ob)
+    tex = bpy.data.textures.get("crown_noise") or bpy.data.textures.new("crown_noise", "CLOUDS")
+    tex.noise_scale = 0.55
+    tex.noise_depth = 2
+    dm = ob.modifiers.new("Leaves", "DISPLACE")
+    dm.texture = tex
+    dm.strength = crown * 0.35
+    dm.mid_level = 0.5
+    _tag(ob, "tree", "SITE")
+
+
+def build_context(spec, colls):
+    """Trees around the building: spec["context"] = {"trees": "auto" | [[x, y, height], ...]}
+    or false to switch off. "auto" places a few behind and beside the hero view."""
+    import random
+    ctx = spec.get("context", {"trees": "auto"})
+    if not ctx:
+        return
+    trees = ctx.get("trees", "auto")
+    rng = random.Random(ctx.get("seed", 7))
+    z = spec["site"]["ground_level"]
+    if trees == "auto":
+        b = S.bounds(spec, include_elements=True)
+        cx, cy = (b[0] + b[3]) / 2, (b[1] + b[4]) / 2
+        rad = math.hypot(b[3] - b[0], b[4] - b[1]) / 2
+        hero = spec.get("hero_azimuth", 210)
+        trees = []
+        for k, off in enumerate((150, 180, 205, 120, 245, 95, 270)):   # behind/beside the hero camera
+            az = math.radians(hero + off + rng.uniform(-8, 8))
+            d = rad + rng.uniform(4.0, 9.0) + (k % 2) * 3.0
+            trees.append([cx + math.sin(az) * d, cy + math.cos(az) * d, rng.uniform(7.0, 11.0)])
+    for i, t in enumerate(trees):
+        _tree(f"tree{i}", t[0], t[1], z, t[2] if len(t) > 2 else 8.0, rng, colls)
+
+
 # ---------------------------------------------------------------- entry point
-def build(spec, quality="draft"):
+def build(spec, quality="draft", context=True):
     reset_scene()
     root = coll("Building")
     colls = {
@@ -382,6 +483,7 @@ def build(spec, quality="draft"):
         "slabs": coll("Slabs", root), "stairs": coll("Stairs", root),
         "roof": coll("Roof", root), "elements": coll("Elements", root),
         "site": coll("Site"), "labels": coll("Labels"), "cutters": coll("Cutters"),
+        "context": coll("Context"),
     }
     for lv in spec["levels"]:
         by_id = {}
@@ -395,6 +497,8 @@ def build(spec, quality="draft"):
     build_roof(spec, colls)
     build_elements(spec, colls)
     build_site(spec, colls)
+    if context:
+        build_context(spec, colls)
     if quality != "draft":  # soft edges catch light, cost little at this point
         for w in [w for lv in spec["levels"] for w in lv["walls"]]:
             bv = w["_ob"].modifiers.new("Bevel", "BEVEL")

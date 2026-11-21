@@ -1,6 +1,6 @@
 {
   "name": "new_project",
-  "description": "Starter: 7 x 5 m single-storey cabin with a gable roof. Copy with ./arch new <name>.",
+  "description": "Starter: 7 x 5 m single-storey cabin with a gable roof. Copy this folder to start a new project.",
   "north": 0,
   "sun": {"azimuth": 235, "elevation": 30},
   "hero_azimuth": 210,

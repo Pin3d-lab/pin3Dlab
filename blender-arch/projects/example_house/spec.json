@@ -78,6 +78,14 @@
     }
   ],
   "roof": {"type": "flat", "thickness": 0.3, "parapet": 0.5},
+  "lighting": "day",
+  "sheet": "A3",
+  "scale": 100,
+  "project": {"project": "Example House", "author": "archkit"},
+  "sections": [
+    {"name": "AA", "from": [-1.5, 8.1], "to": [13.5, 8.1], "look": "south"},
+    {"name": "BB", "from": [9.4, 10.5], "to": [9.4, -1.5], "look": "west"}
+  ],
   "elements": [
     {"name": "terrace", "type": "prism", "polygon": [[0, -3.5], [7, -3.5], [7, 0], [0, 0]], "z": [-0.15, -0.02], "material": "timber"},
     {"name": "canopy", "type": "box", "center": [8.15, -0.6, 2.7], "size": [2.6, 1.2, 0.14], "material": "concrete"},
