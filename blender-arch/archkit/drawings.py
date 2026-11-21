@@ -21,7 +21,7 @@ from . import symbols as Y
 from . import vector as V
 
 SKIP = {"cutter", "label", "ground", "tree", None}
-PLAN_SKIP = {"frame", "glass", "door", "stair", "floor"}     # replaced by plan symbols
+PLAN_SKIP = {"frame", "glass", "door", "stair", "floor", "ceiling"}     # replaced by plan symbols
 LEVEL_TITLES = {"GF": "Ground floor", "FF": "First floor", "SF": "Second floor", "TF": "Third floor",
                 "B1": "Basement", "L0": "Level 0", "L1": "Level 1", "L2": "Level 2", "RF": "Roof"}
 
@@ -255,7 +255,7 @@ def extract(view, step=0.025):
         dist = dP - front - tol
         if dist <= 0:
             return False
-        for off in (0.0, 0.004, -0.004):
+        for off in ((0.0, 0.004, -0.004) if perp.length else (0.0,)):
             o = Vector(P - Dn * (dP - front)) + perp * off
             if bvh.ray_cast(o, Dv, dist)[0] is None:
                 return False
@@ -322,13 +322,37 @@ def extract(view, step=0.025):
             uu, vv = q @ Rn, q @ Un
             if np.ptp(uu) < 0.05 or np.ptp(vv) < 0.05:
                 continue            # glass seen edge-on
+            # visible part of the pane, sampled on a grid and merged into row strips
             dmin = dep.min()
-            lo3, hi3 = co.min(0), co.max(0)
-            probes = [lo3 + (hi3 - lo3) * f for f in (0.5, 0.27, 0.73)] + \
-                     [lo3 + (hi3 - lo3) * np.array(f) for f in ((0.27, 0.27, 0.73), (0.73, 0.73, 0.27))]
-            if all(hidden(c - Dn * (c @ Dn - dmin), dmin, Vector((0, 0, 0))) for c in probes):
-                continue
-            glass.append([(uu.min(), vv.min()), (uu.max(), vv.min()), (uu.max(), vv.max()), (uu.min(), vv.max())])
+            cell = 0.05
+            nu = max(1, int(np.ptp(uu) / cell))
+            nv = max(1, int(np.ptp(vv) / cell))
+            du_, dv_ = np.ptp(uu) / nu, np.ptp(vv) / nv
+            open_runs, next_runs = {}, {}
+            for j in range(nv):
+                v0 = vv.min() + j * dv_
+                run = None
+                for i in range(nu + 1):
+                    vis = False
+                    if i < nu:
+                        u0 = uu.min() + i * du_
+                        P = On + Rn * (u0 + du_ / 2) + Un * (v0 + dv_ / 2) + Dn * dmin
+                        vis = not hidden(P, dmin, Vector((0, 0, 0)))
+                    if vis and run is None:
+                        run = i
+                    elif not vis and run is not None:
+                        key = (run, i)
+                        if key in open_runs:          # same span as the row below: grow it
+                            open_runs[key][2] = v0 + dv_
+                            next_runs[key] = open_runs.pop(key)
+                        else:
+                            next_runs[key] = [uu.min() + run * du_, v0, v0 + dv_, uu.min() + i * du_]
+                        run = None
+                for rr in open_runs.values():
+                    glass.append([(rr[0], rr[1]), (rr[3], rr[1]), (rr[3], rr[2]), (rr[0], rr[2])])
+                open_runs, next_runs = next_runs, {}
+            for rr in open_runs.values():
+                glass.append([(rr[0], rr[1]), (rr[3], rr[1]), (rr[3], rr[2]), (rr[0], rr[2])])
     us = [p[0] for p0, p1, _ in lines for p in (p0, p1)] + [p[0] for lps in poche for lp in lps for p in lp]
     return {"poche": poche, "lines": lines, "glass": glass, "umin": min(us) if us else 0, "umax": max(us) if us else 1}
 

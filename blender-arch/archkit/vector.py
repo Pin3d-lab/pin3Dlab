@@ -296,12 +296,18 @@ def svg_page(page):
             parts.append("M" + " L".join(f"{x:.3f},{Y(y):.3f}" for x, y in lp) + (" Z" if closed else ""))
         return " ".join(parts)
 
+    done_poche = False
     for it in _ordered(page.items):
         if it["t"] == "poche":
-            d = d_of(it["loops"])
-            w = PENS["cut"]["w"] * 2  # half of it is covered by the fill -> union outline
-            o.append(f'<path d="{d}" stroke="#000" stroke-width="{w:.3f}"/>')
-            o.append(f'<path d="{d}" fill="{_hex(POCHE["fill"])}" fill-rule="evenodd" stroke="none"/>')
+            if done_poche:
+                continue
+            done_poche = True
+            # all outlines first (double width), then all fills: the fills cover the inner half
+            # of every outline, so overlapping cut parts read as one merged shape
+            ds = [d_of(p["loops"]) for p in page.items if p["t"] == "poche"]
+            w = PENS["cut"]["w"] * 2
+            o += [f'<path d="{d}" stroke="#000" stroke-width="{w:.3f}"/>' for d in ds]
+            o += [f'<path d="{d}" fill="{_hex(POCHE["fill"])}" fill-rule="evenodd" stroke="none"/>' for d in ds]
         elif it["t"] == "line":
             p = PENS[it["pen"]]
             d = d_of([it["pts"]], it.get("closed"))
@@ -363,12 +369,16 @@ def _pdf_content(page):
                 s.append("h")
         return " ".join(s)
 
+    done_poche = False
     for it in _ordered(page.items):
         if it["t"] == "poche":
-            p = path(it["loops"])
+            if done_poche:
+                continue
+            done_poche = True
+            ps = [path(p["loops"]) for p in page.items if p["t"] == "poche"]
             g = POCHE["fill"]
-            o.append(f"0 G {PENS['cut']['w'] * 2 * k:.3f} w [] 0 d {p} S")
-            o.append(f"{g:.3f} {g:.3f} {g:.3f} rg {p} f*")
+            o += [f"0 G {PENS['cut']['w'] * 2 * k:.3f} w [] 0 d {p} S" for p in ps]
+            o += [f"{g:.3f} {g:.3f} {g:.3f} rg {p} f*" for p in ps]
         elif it["t"] == "line":
             pen = PENS[it["pen"]]
             p = path([it["pts"]], it.get("closed"))

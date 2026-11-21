@@ -33,7 +33,7 @@ LIBRARY = {
 
 # role -> library name (override per project with spec["materials"])
 ROLES = {
-    "wall_ext": "plaster_white", "wall_int": "plaster_white", "slab": "plaster_white",
+    "wall_ext": "plaster_white", "wall_int": "plaster_white", "slab": "concrete", "ceiling": "plaster_white",
     "floor": "oak_floor", "roof": "roof_membrane", "frame": "aluminium_dark",
     "glass": "glass", "door": "door_wood", "stair": "concrete", "ground": "grass",
     "element": "concrete", "label": "concrete_dark",

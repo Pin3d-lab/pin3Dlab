@@ -222,6 +222,22 @@ def build_rooms(spec, lv, colls):
                    colls["slabs"], mat, role, lv["name"])
         if lv.get("_void_cut"):
             boolean_cut(fl, lv["_void_cut"], "Voids")
+        # plaster ceiling under the slab / flat roof above
+        i = spec["levels"].index(lv)
+        above = spec["levels"][i + 1] if i + 1 < len(spec["levels"]) else None
+        zc = above["elevation"] - above["slab"] if above else \
+            (lv["elevation"] + lv["height"] if spec["roof"].get("type", "flat") == "flat" else None)
+        if zc is not None and r.get("ceiling", True):
+            ce = prism(f"{lv['name']}_ceiling_{r['name']}", r["polygon"], zc - 0.012, zc - 0.001,
+                       colls["slabs"], M.for_role(spec, "ceiling"), "ceiling", lv["name"])
+            if above and above["slab_openings"]:      # keep the stair void open
+                c = bpy.data.collections.get(f"cut_{above['name']}_ceiling")
+                if c is None:
+                    c = coll(f"cut_{above['name']}_ceiling", colls["cutters"])
+                    for k, hole in enumerate(above["slab_openings"]):
+                        hide_cutter(prism(f"{above['name']}_cvoid{k}", hole, zc - 0.2, zc + 0.2, c,
+                                          role="cutter", level=above["name"]))
+                boolean_cut(ce, c, "Voids")
         xs = [p[0] for p in r["polygon"]]
         ys = [p[1] for p in r["polygon"]]
         a = S.area(r["polygon"])
@@ -248,11 +264,24 @@ def build_stairs(spec, lv, colls):
         left = Vector((-d.y, d.x, 0))
         start = Vector((*s["start"], 0))  # start = corner on the RIGHT edge of the first step
         mat = M.for_role(spec, "stair")
+        # one solid flight: stepped side profile (along, up) extruded across the width
+        prof = [(0.0, 0.0)]
         for i in range(n):
-            hgt = (i + 1) * r
-            c = start + d * ((i + 0.5) * t) + left * (wdt / 2)
-            box(f"{lv['name']}_stair{k}_{i:02d}", (t, wdt, hgt),
-                (c.x, c.y, lv["elevation"] + hgt / 2), ang, colls["stairs"], mat, "stair", lv["name"])
+            prof += [(i * t, (i + 1) * r), ((i + 1) * t, (i + 1) * r)]
+        prof.append((n * t, 0.0))
+        z0 = lv["elevation"]
+        P = lambda a, y, z: tuple(start + d * a + left * y)[:2] + (z0 + z,)
+        m = len(prof)
+        verts = [P(a, 0.0, z) for a, z in prof] + [P(a, wdt, z) for a, z in prof]
+        faces = [tuple(range(m)), tuple(range(2 * m - 1, m - 1, -1))]
+        faces += [(k, (k + 1) % m, m + (k + 1) % m, m + k) for k in range(m)]
+        ob = mesh_obj(f"{lv['name']}_stair{k}", verts, faces, colls["stairs"], mat, "stair", lv["name"])
+        import bmesh
+        bm = bmesh.new()
+        bm.from_mesh(ob.data)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        bm.to_mesh(ob.data)
+        bm.free()
 
 
 # ---------------------------------------------------------------- roof
