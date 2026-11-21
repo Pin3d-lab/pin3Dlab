@@ -1,0 +1,89 @@
+{
+  "name": "example_house",
+  "description": "Two-storey 12 x 9 m house, flat roof with parapet, south terrace.",
+  "north": 0,
+  "sun": {"azimuth": 240, "elevation": 32, "strength": 4.0},
+  "hero_azimuth": 205,
+  "hero_lens": 26,
+  "materials": {
+    "wall_ext": "plaster_white",
+    "wall_int": "plaster_white",
+    "floor": "oak_floor",
+    "roof": "roof_membrane",
+    "frame": "aluminium_dark",
+    "ground": "grass"
+  },
+  "levels": [
+    {
+      "name": "GF",
+      "elevation": 0.0,
+      "height": 3.2,
+      "slab": 0.3,
+      "walls": [
+        {"id": "ext", "closed": true, "thickness": 0.3, "path": [[0, 0], [12, 0], [12, 9], [0, 9]]},
+        {"id": "int_a", "thickness": 0.12, "path": [[7, 0.3], [7, 8.7]]},
+        {"id": "int_b", "thickness": 0.12, "path": [[7.06, 5], [11.7, 5]]}
+      ],
+      "openings": [
+        {"wall": "ext", "segment": 0, "kind": "window", "offset": 0.8, "width": 5.0, "sill": 0.0, "height": 2.6},
+        {"wall": "ext", "segment": 0, "kind": "door",   "offset": 7.6, "width": 1.1, "height": 2.3},
+        {"wall": "ext", "segment": 0, "kind": "window", "offset": 9.4, "width": 1.6, "sill": 0.9, "height": 1.5},
+        {"wall": "ext", "segment": 1, "kind": "window", "offset": 1.5, "width": 2.0, "sill": 0.9, "height": 1.5},
+        {"wall": "ext", "segment": 2, "kind": "window", "offset": 1.0, "width": 1.2, "sill": 1.2, "height": 1.0},
+        {"wall": "ext", "segment": 2, "kind": "window", "offset": 6.0, "width": 2.4, "sill": 0.9, "height": 1.5},
+        {"wall": "ext", "segment": 3, "kind": "window", "offset": 2.0, "width": 4.0, "sill": 0.0, "height": 2.6},
+        {"wall": "int_a", "kind": "door",    "offset": 1.8, "width": 0.9},
+        {"wall": "int_a", "kind": "opening", "offset": 5.2, "width": 1.2, "height": 2.3},
+        {"wall": "int_b", "kind": "opening", "offset": 0.4, "width": 1.2, "height": 2.3}
+      ],
+      "rooms": [
+        {"name": "Living / Kitchen", "polygon": [[0.3, 0.3], [6.94, 0.3], [6.94, 8.7], [0.3, 8.7]]},
+        {"name": "Entry", "polygon": [[7.06, 0.3], [11.7, 0.3], [11.7, 4.94], [7.06, 4.94]]},
+        {"name": "Stair / WC", "polygon": [[7.06, 5.06], [11.7, 5.06], [11.7, 8.7], [7.06, 8.7]], "material": "tile_light"}
+      ],
+      "stairs": [
+        {"start": [7.2, 7.6], "direction": 0, "width": 1.0, "riser": 0.188, "tread": 0.26}
+      ]
+    },
+    {
+      "name": "FF",
+      "elevation": 3.2,
+      "height": 3.0,
+      "slab": 0.3,
+      "slab_openings": [[[7.2, 7.55], [11.65, 7.55], [11.65, 8.65], [7.2, 8.65]]],
+      "walls": [
+        {"id": "ext_ff", "closed": true, "thickness": 0.3, "path": [[0, 0], [12, 0], [12, 9], [0, 9]]},
+        {"id": "f_a", "thickness": 0.12, "path": [[6, 0.3], [6, 8.7]]},
+        {"id": "f_b", "thickness": 0.12, "path": [[6.06, 4.0], [11.7, 4.0]]},
+        {"id": "f_c", "thickness": 0.12, "path": [[0.3, 5.6], [5.94, 5.6]]}
+      ],
+      "openings": [
+        {"wall": "ext_ff", "segment": 0, "kind": "window", "offset": 0.8, "width": 2.4, "sill": 0.9, "height": 1.6},
+        {"wall": "ext_ff", "segment": 0, "kind": "window", "offset": 3.4, "width": 2.0, "sill": 0.9, "height": 1.6},
+        {"wall": "ext_ff", "segment": 0, "kind": "window", "offset": 7.0, "width": 3.0, "sill": 0.9, "height": 1.6},
+        {"wall": "ext_ff", "segment": 1, "kind": "window", "offset": 1.0, "width": 1.6, "sill": 0.9, "height": 1.4},
+        {"wall": "ext_ff", "segment": 2, "kind": "window", "offset": 2.0, "width": 2.4, "sill": 0.9, "height": 1.4},
+        {"wall": "ext_ff", "segment": 2, "kind": "window", "offset": 8.0, "width": 1.0, "sill": 1.4, "height": 0.9},
+        {"wall": "ext_ff", "segment": 3, "kind": "window", "offset": 2.0, "width": 2.4, "sill": 0.9, "height": 1.6},
+        {"wall": "f_a", "kind": "door", "offset": 4.1, "width": 0.9},
+        {"wall": "f_a", "kind": "door", "offset": 6.4, "width": 0.8},
+        {"wall": "f_b", "kind": "door", "offset": 0.4, "width": 0.9}
+      ],
+      "rooms": [
+        {"name": "Bedroom 1", "polygon": [[0.3, 0.3], [5.94, 0.3], [5.94, 5.54], [0.3, 5.54]]},
+        {"name": "Bath", "polygon": [[0.3, 5.66], [5.94, 5.66], [5.94, 8.7], [0.3, 8.7]], "material": "tile_light"},
+        {"name": "Bedroom 2", "polygon": [[6.06, 0.3], [11.7, 0.3], [11.7, 3.94], [6.06, 3.94]]},
+        {"name": "Landing", "polygon": [[6.06, 4.06], [11.7, 4.06], [11.7, 8.7], [6.06, 8.7]]}
+      ]
+    }
+  ],
+  "roof": {"type": "flat", "thickness": 0.3, "parapet": 0.5},
+  "elements": [
+    {"name": "terrace", "type": "prism", "polygon": [[0, -3.5], [7, -3.5], [7, 0], [0, 0]], "z": [-0.15, -0.02], "material": "timber"},
+    {"name": "canopy", "type": "box", "center": [8.15, -0.6, 2.7], "size": [2.6, 1.2, 0.14], "material": "concrete"},
+    {"name": "path", "type": "prism", "polygon": [[7.6, -12], [8.8, -12], [8.8, -1.2], [7.6, -1.2]], "z": [-0.15, -0.13], "material": "paving"}
+  ],
+  "cameras": [
+    {"name": "interior_living", "interior": true, "location": [0.9, 0.8, 1.45], "look_at": [6.5, 8.2, 1.3], "lens": 16}
+  ]
+}
